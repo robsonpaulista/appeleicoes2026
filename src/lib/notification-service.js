@@ -1,6 +1,6 @@
 // Serviço de notificação para enviar respostas automáticas aos líderes
 
-import { solicitacoesService, solicitacoesMarketingService } from './services.js';
+import { solicitacoesService, solicitacoesMarketingService, solicitacoesAgendaService } from './services.js';
 
 class NotificationService {
   constructor() {
@@ -48,31 +48,28 @@ class NotificationService {
   // Verificar por atualizações nas solicitações
   async checkForUpdates() {
     try {
-      // Buscar solicitações de materiais atualizadas
       const updatedSolicitacoes = await this.getUpdatedSolicitacoes();
-      
-      // Buscar solicitações de marketing atualizadas
       const updatedSolicitacoesMarketing = await this.getUpdatedSolicitacoesMarketing();
+      const updatedSolicitacoesAgenda = await this.getUpdatedSolicitacoesAgenda();
       
-      const totalUpdates = updatedSolicitacoes.length + updatedSolicitacoesMarketing.length;
+      const totalUpdates = updatedSolicitacoes.length + updatedSolicitacoesMarketing.length + updatedSolicitacoesAgenda.length;
       
       if (totalUpdates > 0) {
-        console.log(`🔔 Encontradas ${totalUpdates} solicitações atualizadas (${updatedSolicitacoes.length} materiais + ${updatedSolicitacoesMarketing.length} marketing)`);
+        console.log(`🔔 Encontradas ${totalUpdates} solicitações atualizadas (${updatedSolicitacoes.length} materiais + ${updatedSolicitacoesMarketing.length} marketing + ${updatedSolicitacoesAgenda.length} agenda)`);
         
-        // Enviar notificações de materiais
         for (const solicitacao of updatedSolicitacoes) {
           await this.sendNotification(solicitacao, 'material');
         }
         
-        // Enviar notificações de marketing
         for (const solicitacao of updatedSolicitacoesMarketing) {
           await this.sendNotification(solicitacao, 'marketing');
         }
+        
+        for (const solicitacao of updatedSolicitacoesAgenda) {
+          await this.sendNotification(solicitacao, 'agenda');
+        }
       }
-
-      // Atualizar timestamp da última verificação
       this.lastCheck = new Date();
-      
     } catch (error) {
       console.error('❌ Erro ao verificar atualizações:', error);
     }
@@ -112,6 +109,21 @@ class NotificationService {
     }
   }
 
+  async getUpdatedSolicitacoesAgenda() {
+    try {
+      const solicitacoes = await solicitacoesAgendaService.getAll();
+      const updatedSolicitacoes = solicitacoes.filter(solicitacao => {
+        const updatedAt = new Date(solicitacao.updated_at);
+        return updatedAt > this.lastCheck && solicitacao.status !== 'pendente';
+      });
+      
+      return updatedSolicitacoes;
+    } catch (error) {
+      console.error('❌ Erro ao buscar solicitações de agenda atualizadas:', error);
+      return [];
+    }
+  }
+
   // Enviar notificação para o líder
   async sendNotification(solicitacao, tipo = 'material') {
     try {
@@ -139,6 +151,8 @@ class NotificationService {
   formatNotificationMessage(solicitacao, tipo = 'material') {
     if (tipo === 'marketing') {
       return this.formatMarketingNotificationMessage(solicitacao);
+    } else if (tipo === 'agenda') {
+      return this.formatAgendaNotificationMessage(solicitacao);
     } else {
       return this.formatMaterialNotificationMessage(solicitacao);
     }
@@ -168,6 +182,55 @@ class NotificationService {
     }
 
     return 'Sua solicitação de marketing foi processada. Entre em contato com o administrativo para mais informações.';
+  }
+
+  formatAgendaNotificationMessage(solicitacao) {
+    if (solicitacao.status === 'aprovada') {
+      return this.formatAgendaApprovalMessage(solicitacao);
+    } else if (solicitacao.status === 'rejeitada') {
+      return this.formatAgendaRejectionMessage(solicitacao);
+    }
+    return null;
+  }
+
+  formatAgendaApprovalMessage(solicitacao) {
+    let message = `✅ *Solicitação de Agenda APROVADA!*\n\n`;
+    message += `Olá ${solicitacao.nome_solicitante || 'Líder'}!\n\n`;
+    message += `Sua solicitação de agenda foi *APROVADA*!\n\n`;
+    message += `📅 *Detalhes do Agendamento:*\n`;
+    message += `• Assunto: ${solicitacao.assunto}\n`;
+    
+    if (solicitacao.data_confirmada) {
+      message += `• Data: ${new Date(solicitacao.data_confirmada).toLocaleDateString('pt-BR')}\n`;
+    }
+    
+    if (solicitacao.horario_confirmado) {
+      message += `• Horário: ${solicitacao.horario_confirmado}\n`;
+    }
+    
+    if (solicitacao.local_confirmado) {
+      message += `• Local: ${solicitacao.local_confirmado}\n`;
+    }
+    
+    message += `\n💬 *Resposta do Administrativo:*\n${solicitacao.resposta_administrativo}\n\n`;
+    message += `Aguardamos sua presença no horário agendado!\n`;
+    message += `Em caso de dúvidas, entre em contato conosco.`;
+    
+    return message;
+  }
+
+  formatAgendaRejectionMessage(solicitacao) {
+    let message = `❌ *Solicitação de Agenda NÃO APROVADA*\n\n`;
+    message += `Olá ${solicitacao.nome_solicitante || 'Líder'}!\n\n`;
+    message += `Infelizmente sua solicitação de agenda *não foi aprovada*.\n\n`;
+    message += `📅 *Detalhes da Solicitação:*\n`;
+    message += `• Assunto: ${solicitacao.assunto}\n`;
+    message += `• Data Solicitada: ${new Date(solicitacao.data_solicitada).toLocaleDateString('pt-BR')}\n`;
+    message += `• Tipo: ${solicitacao.tipo_agendamento}\n\n`;
+    message += `💬 *Resposta do Administrativo:*\n${solicitacao.resposta_administrativo}\n\n`;
+    message += `Agradecemos seu interesse e esperamos poder atendê-lo em uma próxima oportunidade.`;
+    
+    return message;
   }
 
   // Formatar mensagem de aprovação

@@ -133,6 +133,69 @@ db.exec(`
   )
 `);
 
+// Tabela de disponibilidade de agenda do deputado
+db.exec(`
+  CREATE TABLE IF NOT EXISTS agenda_disponibilidade (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    data DATE NOT NULL,
+    horario_inicio TIME NOT NULL,
+    horario_fim TIME NOT NULL,
+    local TEXT,
+    tipo_agendamento TEXT DEFAULT 'reuniao',
+    observacoes TEXT,
+    disponivel BOOLEAN DEFAULT 1,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )
+`);
+
+// Tabela de solicitações de agenda
+db.exec(`
+  CREATE TABLE IF NOT EXISTS solicitacoes_agenda (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    phone_number TEXT NOT NULL,
+    nome_solicitante TEXT,
+    municipio_solicitante TEXT,
+    data_solicitada DATE NOT NULL,
+    horario_solicitado TEXT,
+    tipo_agendamento TEXT DEFAULT 'reuniao',
+    assunto TEXT NOT NULL,
+    descricao TEXT,
+    local_preferido TEXT,
+    duracao_estimada INTEGER DEFAULT 60,
+    prioridade TEXT DEFAULT 'normal',
+    observacoes TEXT,
+    status TEXT DEFAULT 'pendente',
+    resposta_administrativo TEXT,
+    data_confirmada DATE,
+    horario_confirmado TEXT,
+    local_confirmado TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )
+`);
+
+// Tabela de confirmações de agenda realizadas
+db.exec(`
+  CREATE TABLE IF NOT EXISTS confirmacoes_agenda (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    solicitacao_id INTEGER,
+    phone_number TEXT NOT NULL,
+    nome_solicitante TEXT,
+    municipio_solicitante TEXT,
+    data_agendada DATE NOT NULL,
+    horario_agendado TEXT NOT NULL,
+    local_agendado TEXT,
+    tipo_agendamento TEXT,
+    assunto TEXT,
+    duracao_agendada INTEGER,
+    responsavel_agendamento TEXT,
+    observacoes_agendamento TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (solicitacao_id) REFERENCES solicitacoes_agenda(id)
+  )
+`);
+
 // Função para executar queries (similar ao pg)
 const query = (sql, params = []) => {
   try {

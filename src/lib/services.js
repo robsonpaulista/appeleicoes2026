@@ -729,22 +729,33 @@ export const solicitacoesMarketingService = {
 // Serviços para Entregas de Marketing
 export const entregasMarketingService = {
   async add(entregaData) {
-    const { solicitacao_id, phone_number, nome_solicitante, municipio_solicitante, servico_entregue, arquivos_entregues, valor_final, data_entrega, responsavel_entrega, observacoes_entrega } = entregaData;
+    const {
+      solicitacao_id, phone_number, nome_solicitante, municipio_solicitante,
+      servico_entregue, arquivos_entregues, valor_final, data_entrega,
+      responsavel_entrega, observacoes_entrega
+    } = entregaData;
+
     const result = await pool.query(
-      'INSERT INTO entregas_marketing (solicitacao_id, phone_number, nome_solicitante, municipio_solicitante, servico_entregue, arquivos_entregues, valor_final, data_entrega, responsavel_entrega, observacoes_entrega) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *',
-      [solicitacao_id, phone_number, nome_solicitante, municipio_solicitante, servico_entregue, arquivos_entregues, valor_final, data_entrega, responsavel_entrega, observacoes_entrega]
+      `INSERT INTO entregas_marketing 
+       (solicitacao_id, phone_number, nome_solicitante, municipio_solicitante, 
+        servico_entregue, arquivos_entregues, valor_final, data_entrega, 
+        responsavel_entrega, observacoes_entrega) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *`,
+      [solicitacao_id, phone_number, nome_solicitante, municipio_solicitante,
+       servico_entregue, arquivos_entregues, valor_final, data_entrega,
+       responsavel_entrega, observacoes_entrega]
     );
     return result.rows[0];
   },
 
   async getAll() {
-    const result = await pool.query('SELECT * FROM entregas_marketing ORDER BY data_entrega DESC');
+    const result = await pool.query('SELECT * FROM entregas_marketing ORDER BY created_at DESC');
     return result.rows;
   },
 
   async getByLider(nome_solicitante) {
     const result = await pool.query(
-      'SELECT * FROM entregas_marketing WHERE nome_solicitante = ? ORDER BY data_entrega DESC',
+      'SELECT * FROM entregas_marketing WHERE nome_solicitante = ? ORDER BY created_at DESC',
       [nome_solicitante]
     );
     return result.rows;
@@ -752,7 +763,7 @@ export const entregasMarketingService = {
 
   async getByMunicipio(municipio) {
     const result = await pool.query(
-      'SELECT * FROM entregas_marketing WHERE municipio_solicitante = ? ORDER BY data_entrega DESC',
+      'SELECT * FROM entregas_marketing WHERE municipio_solicitante = ? ORDER BY created_at DESC',
       [municipio]
     );
     return result.rows;
@@ -762,10 +773,9 @@ export const entregasMarketingService = {
     const result = await pool.query(`
       SELECT 
         COUNT(*) as total_entregas,
-        SUM(valor_final) as valor_total_entregue,
-        COUNT(DISTINCT nome_solicitante) as total_lideres_atendidos,
-        COUNT(DISTINCT municipio_solicitante) as total_municipios_atendidos,
-        AVG(valor_final) as valor_medio_por_entrega
+        SUM(valor_final) as valor_total,
+        COUNT(DISTINCT nome_solicitante) as lideres_beneficiados,
+        COUNT(DISTINCT municipio_solicitante) as municipios_beneficiados
       FROM entregas_marketing
     `);
     return result.rows[0];
@@ -775,14 +785,11 @@ export const entregasMarketingService = {
     const result = await pool.query(`
       SELECT 
         nome_solicitante,
-        municipio_solicitante,
         COUNT(*) as total_entregas,
-        SUM(valor_final) as valor_total_entregue,
-        AVG(valor_final) as valor_medio_por_entrega,
-        MAX(data_entrega) as ultima_entrega
-      FROM entregas_marketing
-      GROUP BY nome_solicitante, municipio_solicitante
-      ORDER BY valor_total_entregue DESC
+        SUM(valor_final) as valor_total
+      FROM entregas_marketing 
+      GROUP BY nome_solicitante 
+      ORDER BY valor_total DESC
     `);
     return result.rows;
   },
@@ -792,12 +799,288 @@ export const entregasMarketingService = {
       SELECT 
         municipio_solicitante,
         COUNT(*) as total_entregas,
-        COUNT(DISTINCT nome_solicitante) as total_lideres_atendidos,
-        SUM(valor_final) as valor_total_entregue,
-        AVG(valor_final) as valor_medio_por_entrega
-      FROM entregas_marketing
-      GROUP BY municipio_solicitante
-      ORDER BY valor_total_entregue DESC
+        SUM(valor_final) as valor_total
+      FROM entregas_marketing 
+      GROUP BY municipio_solicitante 
+      ORDER BY valor_total DESC
+    `);
+    return result.rows;
+  }
+};
+
+// Serviços para Agenda do Deputado
+export const agendaService = {
+  async getAll() {
+    const result = await pool.query('SELECT * FROM agenda_disponibilidade ORDER BY data ASC, horario_inicio ASC');
+    return result.rows;
+  },
+
+  async getById(id) {
+    const result = await pool.query('SELECT * FROM agenda_disponibilidade WHERE id = ?', [id]);
+    return result.rows[0];
+  },
+
+  async add(agendaData) {
+    const {
+      data, horario_inicio, horario_fim, local, tipo_agendamento, observacoes, disponivel
+    } = agendaData;
+
+    const result = await pool.query(
+      `INSERT INTO agenda_disponibilidade 
+       (data, horario_inicio, horario_fim, local, tipo_agendamento, observacoes, disponivel) 
+       VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING *`,
+      [data, horario_inicio, horario_fim, local, tipo_agendamento, observacoes, disponivel ? 1 : 0]
+    );
+    return result.rows[0];
+  },
+
+  async update(id, agendaData) {
+    const {
+      data, horario_inicio, horario_fim, local, tipo_agendamento, observacoes, disponivel
+    } = agendaData;
+
+    const result = await pool.query(
+      `UPDATE agenda_disponibilidade SET 
+       data = ?, horario_inicio = ?, horario_fim = ?, local = ?, 
+       tipo_agendamento = ?, observacoes = ?, disponivel = ?, updated_at = CURRENT_TIMESTAMP 
+       WHERE id = ? RETURNING *`,
+      [data, horario_inicio, horario_fim, local, tipo_agendamento, observacoes, disponivel ? 1 : 0, id]
+    );
+    return result.rows[0];
+  },
+
+  async delete(id) {
+    await pool.query('DELETE FROM agenda_disponibilidade WHERE id = ?', [id]);
+  },
+
+  async getByData(data) {
+    const result = await pool.query(
+      'SELECT * FROM agenda_disponibilidade WHERE data = ? ORDER BY horario_inicio ASC',
+      [data]
+    );
+    return result.rows;
+  },
+
+  async getDisponiveis() {
+    const result = await pool.query(
+      'SELECT * FROM agenda_disponibilidade WHERE disponivel = 1 ORDER BY data ASC, horario_inicio ASC'
+    );
+    return result.rows;
+  },
+
+  async getStats() {
+    const result = await pool.query(`
+      SELECT 
+        COUNT(*) as total_horarios,
+        COUNT(CASE WHEN disponivel = 1 THEN 1 END) as horarios_disponiveis,
+        COUNT(CASE WHEN disponivel = 0 THEN 1 END) as horarios_ocupados,
+        COUNT(DISTINCT data) as dias_com_horarios
+      FROM agenda_disponibilidade
+    `);
+    return result.rows[0];
+  }
+};
+
+// Serviços para Solicitações de Agenda
+export const solicitacoesAgendaService = {
+  async getAll() {
+    const result = await pool.query('SELECT * FROM solicitacoes_agenda ORDER BY created_at DESC');
+    return result.rows;
+  },
+
+  async getById(id) {
+    const result = await pool.query('SELECT * FROM solicitacoes_agenda WHERE id = ?', [id]);
+    return result.rows[0];
+  },
+
+  async add(solicitacaoData) {
+    const {
+      phone_number, nome_solicitante, municipio_solicitante, data_solicitada,
+      horario_solicitado, tipo_agendamento, assunto, descricao, local_preferido,
+      duracao_estimada, prioridade, observacoes
+    } = solicitacaoData;
+
+    const result = await pool.query(
+      `INSERT INTO solicitacoes_agenda 
+       (phone_number, nome_solicitante, municipio_solicitante, data_solicitada,
+        horario_solicitado, tipo_agendamento, assunto, descricao, local_preferido,
+        duracao_estimada, prioridade, observacoes) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *`,
+      [phone_number, nome_solicitante, municipio_solicitante, data_solicitada,
+       horario_solicitado, tipo_agendamento, assunto, descricao, local_preferido,
+       duracao_estimada, prioridade, observacoes]
+    );
+    return result.rows[0];
+  },
+
+  async updateStatus(id, status, resposta_administrativo, data_confirmada, horario_confirmado, local_confirmado) {
+    const result = await pool.query(
+      `UPDATE solicitacoes_agenda SET
+       status = ?, resposta_administrativo = ?, data_confirmada = ?, 
+       horario_confirmado = ?, local_confirmado = ?, updated_at = CURRENT_TIMESTAMP
+       WHERE id = ? RETURNING *`,
+      [status, resposta_administrativo, data_confirmada, horario_confirmado, local_confirmado, id]
+    );
+    return result.rows[0];
+  },
+
+  async getByStatus(status) {
+    const result = await pool.query(
+      'SELECT * FROM solicitacoes_agenda WHERE status = ? ORDER BY created_at DESC',
+      [status]
+    );
+    return result.rows;
+  },
+
+  async getByLider(nome_solicitante) {
+    const result = await pool.query(
+      'SELECT * FROM solicitacoes_agenda WHERE nome_solicitante = ? ORDER BY created_at DESC',
+      [nome_solicitante]
+    );
+    return result.rows;
+  },
+
+  async getByMunicipio(municipio) {
+    const result = await pool.query(
+      'SELECT * FROM solicitacoes_agenda WHERE municipio_solicitante = ? ORDER BY created_at DESC',
+      [municipio]
+    );
+    return result.rows;
+  },
+
+  async getStats() {
+    const result = await pool.query(`
+      SELECT 
+        COUNT(*) as total_solicitacoes,
+        COUNT(CASE WHEN status = 'pendente' THEN 1 END) as pendentes,
+        COUNT(CASE WHEN status = 'aprovada' THEN 1 END) as aprovadas,
+        COUNT(CASE WHEN status = 'rejeitada' THEN 1 END) as rejeitadas,
+        COUNT(DISTINCT nome_solicitante) as lideres_solicitantes,
+        COUNT(DISTINCT municipio_solicitante) as municipios_solicitantes
+      FROM solicitacoes_agenda
+    `);
+    return result.rows[0];
+  },
+
+  async getStatsPorLider() {
+    const result = await pool.query(`
+      SELECT 
+        nome_solicitante,
+        COUNT(*) as total_solicitacoes,
+        COUNT(CASE WHEN status = 'aprovada' THEN 1 END) as aprovadas,
+        COUNT(CASE WHEN status = 'rejeitada' THEN 1 END) as rejeitadas
+      FROM solicitacoes_agenda 
+      GROUP BY nome_solicitante 
+      ORDER BY total_solicitacoes DESC
+    `);
+    return result.rows;
+  },
+
+  async getStatsPorMunicipio() {
+    const result = await pool.query(`
+      SELECT 
+        municipio_solicitante,
+        COUNT(*) as total_solicitacoes,
+        COUNT(CASE WHEN status = 'aprovada' THEN 1 END) as aprovadas,
+        COUNT(CASE WHEN status = 'rejeitada' THEN 1 END) as rejeitadas
+      FROM solicitacoes_agenda 
+      GROUP BY municipio_solicitante 
+      ORDER BY total_solicitacoes DESC
+    `);
+    return result.rows;
+  },
+
+  async getStatsPorTipo() {
+    const result = await pool.query(`
+      SELECT 
+        tipo_agendamento,
+        COUNT(*) as total_solicitacoes,
+        COUNT(CASE WHEN status = 'aprovada' THEN 1 END) as aprovadas
+      FROM solicitacoes_agenda 
+      GROUP BY tipo_agendamento 
+      ORDER BY total_solicitacoes DESC
+    `);
+    return result.rows;
+  }
+};
+
+// Serviços para Confirmações de Agenda
+export const confirmacoesAgendaService = {
+  async add(confirmacaoData) {
+    const {
+      solicitacao_id, phone_number, nome_solicitante, municipio_solicitante,
+      data_agendada, horario_agendado, local_agendado, tipo_agendamento,
+      assunto, duracao_agendada, responsavel_agendamento, observacoes_agendamento
+    } = confirmacaoData;
+
+    const result = await pool.query(
+      `INSERT INTO confirmacoes_agenda 
+       (solicitacao_id, phone_number, nome_solicitante, municipio_solicitante,
+        data_agendada, horario_agendado, local_agendado, tipo_agendamento,
+        assunto, duracao_agendada, responsavel_agendamento, observacoes_agendamento) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *`,
+      [solicitacao_id, phone_number, nome_solicitante, municipio_solicitante,
+       data_agendada, horario_agendado, local_agendado, tipo_agendamento,
+       assunto, duracao_agendada, responsavel_agendamento, observacoes_agendamento]
+    );
+    return result.rows[0];
+  },
+
+  async getAll() {
+    const result = await pool.query('SELECT * FROM confirmacoes_agenda ORDER BY created_at DESC');
+    return result.rows;
+  },
+
+  async getByLider(nome_solicitante) {
+    const result = await pool.query(
+      'SELECT * FROM confirmacoes_agenda WHERE nome_solicitante = ? ORDER BY created_at DESC',
+      [nome_solicitante]
+    );
+    return result.rows;
+  },
+
+  async getByMunicipio(municipio) {
+    const result = await pool.query(
+      'SELECT * FROM confirmacoes_agenda WHERE municipio_solicitante = ? ORDER BY created_at DESC',
+      [municipio]
+    );
+    return result.rows;
+  },
+
+  async getStats() {
+    const result = await pool.query(`
+      SELECT 
+        COUNT(*) as total_agendamentos,
+        COUNT(DISTINCT nome_solicitante) as lideres_agendados,
+        COUNT(DISTINCT municipio_solicitante) as municipios_agendados,
+        COUNT(DISTINCT data_agendada) as dias_com_agendamentos
+      FROM confirmacoes_agenda
+    `);
+    return result.rows[0];
+  },
+
+  async getStatsPorLider() {
+    const result = await pool.query(`
+      SELECT 
+        nome_solicitante,
+        COUNT(*) as total_agendamentos,
+        COUNT(DISTINCT data_agendada) as dias_agendados
+      FROM confirmacoes_agenda 
+      GROUP BY nome_solicitante 
+      ORDER BY total_agendamentos DESC
+    `);
+    return result.rows;
+  },
+
+  async getStatsPorMunicipio() {
+    const result = await pool.query(`
+      SELECT 
+        municipio_solicitante,
+        COUNT(*) as total_agendamentos,
+        COUNT(DISTINCT data_agendada) as dias_agendados
+      FROM confirmacoes_agenda 
+      GROUP BY municipio_solicitante 
+      ORDER BY total_agendamentos DESC
     `);
     return result.rows;
   }

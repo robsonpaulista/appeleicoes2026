@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { whitelistService, knowledgeBaseService, conversationLogService, materiaisService, solicitacoesService } from '@/lib/services';
+import { whitelistService, knowledgeBaseService, conversationLogService, materiaisService, solicitacoesService, solicitacoesMarketingService, solicitacoesAgendaService } from '@/lib/services';
 
 export async function POST(request: NextRequest) {
   try {
@@ -116,6 +116,37 @@ async function processMessage(phoneNumber: string, message: string) {
           
           response = `Solicitação registrada com sucesso! Sua solicitação de material foi enviada para o administrativo. Em breve entraremos em contato para confirmar a disponibilidade.`;
           confidenceScore = 0.9;
+        } else if (normalizedMessage.includes('agenda') || normalizedMessage.includes('reunião') || 
+            normalizedMessage.includes('reuniao') || normalizedMessage.includes('encontro') ||
+            normalizedMessage.includes('marcar') || normalizedMessage.includes('agendamento') ||
+            normalizedMessage.includes('horário') || normalizedMessage.includes('horario') ||
+            normalizedMessage.includes('data') || normalizedMessage.includes('hora') ||
+            normalizedMessage.includes('visita') || normalizedMessage.includes('audiencia') ||
+            normalizedMessage.includes('audiência') || normalizedMessage.includes('consulta') ||
+            normalizedMessage.includes('atendimento') || normalizedMessage.includes('consulta')) {
+            
+            // Registrar solicitação de agenda
+            const vipInfo = await whitelistService.getVipInfo(phoneNumber);
+            const nome_solicitante = vipInfo?.name || 'Líder';
+            const municipio_solicitante = vipInfo?.municipio || 'Não informado';
+            
+            const solicitacao = await solicitacoesAgendaService.add({
+                phone_number: phoneNumber,
+                nome_solicitante: nome_solicitante,
+                municipio_solicitante: municipio_solicitante,
+                data_solicitada: new Date().toISOString().split('T')[0], // Data atual como padrão
+                horario_solicitado: null,
+                tipo_agendamento: 'reuniao',
+                assunto: message,
+                descricao: message,
+                local_preferido: null,
+                duracao_estimada: 60,
+                prioridade: 'normal',
+                observacoes: `Solicitação via bot: ${message}`
+            });
+            
+            response = `Solicitação de agenda registrada com sucesso! Sua solicitação de reunião com o deputado foi enviada para o administrativo. Em breve entraremos em contato para confirmar a data e horário.`;
+            confidenceScore = 0.9;
         } else if (normalizedMessage.includes('PL-2628') || normalizedMessage.includes('2628/2022')) {
         // Busca específica para o PL-2628/2022
         const pl2628 = await knowledgeBaseService.search('PL-2628');
