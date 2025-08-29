@@ -1,6 +1,6 @@
 import pkg from 'whatsapp-web.js';
 const { Client, LocalAuth } = pkg;
-import { whitelistService, knowledgeBaseService, conversationLogService, materiaisService, solicitacoesService } from '../src/lib/services.js';
+import { whitelistService, knowledgeBaseService, conversationLogService, materiaisService, solicitacoesService, solicitacoesMarketingService } from '../src/lib/services.js';
 import { updateBotStatus, updateQRCode, markAsConnected, markAsDisconnected, markAsError } from '../src/lib/bot-status.js';
 import notificationService from '../src/lib/notification-service.js';
 
@@ -162,6 +162,36 @@ async function processMessage(phoneNumber, message) {
                 });
                 
                 response = `Solicitação registrada com sucesso! Sua solicitação de material foi enviada para o administrativo. Em breve entraremos em contato para confirmar a disponibilidade.`;
+                confidenceScore = 0.9;
+            } else if (normalizedMessage.includes('marketing') || normalizedMessage.includes('arte') || 
+                normalizedMessage.includes('artes') || normalizedMessage.includes('logo') || 
+                normalizedMessage.includes('logomarca') || normalizedMessage.includes('logomarcas') ||
+                normalizedMessage.includes('banner') || normalizedMessage.includes('banners') ||
+                normalizedMessage.includes('cartaz') || normalizedMessage.includes('cartazes') ||
+                normalizedMessage.includes('flyer') || normalizedMessage.includes('flyers') ||
+                normalizedMessage.includes('design') || normalizedMessage.includes('criacao') ||
+                normalizedMessage.includes('criação') || normalizedMessage.includes('identidade visual') ||
+                normalizedMessage.includes('social media') || normalizedMessage.includes('redes sociais') ||
+                normalizedMessage.includes('instagram') || normalizedMessage.includes('facebook') ||
+                normalizedMessage.includes('post') || normalizedMessage.includes('posts')) {
+                
+                // Registrar solicitação de marketing
+                const vipInfo = await whitelistService.getVipInfo(phoneNumber);
+                const nome_solicitante = vipInfo?.name || 'Líder';
+                const municipio_solicitante = vipInfo?.municipio || 'Não informado';
+                
+                const solicitacao = await solicitacoesMarketingService.add({
+                    phone_number: phoneNumber,
+                    nome_solicitante: nome_solicitante,
+                    municipio_solicitante: municipio_solicitante,
+                    servico_solicitado: message,
+                    descricao_projeto: message,
+                    prazo_desejado: null,
+                    valor_estimado: 0.00,
+                    observacoes: `Solicitação via bot: ${message}`
+                });
+                
+                response = `Solicitação de marketing registrada com sucesso! Sua solicitação de serviço de marketing foi enviada para o administrativo. Em breve entraremos em contato para discutir os detalhes do projeto.`;
                 confidenceScore = 0.9;
             } else if (normalizedMessage.includes('PL-2628') || normalizedMessage.includes('2628/2022')) {
             // Busca específica para o PL-2628/2022

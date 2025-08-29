@@ -78,6 +78,61 @@ db.exec(`
   )
 `);
 
+// Tabela de serviços de marketing
+db.exec(`
+  CREATE TABLE IF NOT EXISTS servicos_marketing (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    nome TEXT NOT NULL,
+    categoria TEXT NOT NULL,
+    descricao TEXT,
+    tempo_estimado TEXT,
+    custo_estimado REAL DEFAULT 0.00,
+    fornecedor TEXT,
+    observacoes TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )
+`);
+
+// Tabela de solicitações de marketing
+db.exec(`
+  CREATE TABLE IF NOT EXISTS solicitacoes_marketing (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    phone_number TEXT NOT NULL,
+    nome_solicitante TEXT,
+    municipio_solicitante TEXT,
+    servico_solicitado TEXT NOT NULL,
+    descricao_projeto TEXT,
+    prazo_desejado DATE,
+    valor_estimado REAL DEFAULT 0.00,
+    observacoes TEXT,
+    status TEXT DEFAULT 'pendente',
+    resposta_administrativo TEXT,
+    data_entrega DATE,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )
+`);
+
+// Tabela de entregas de marketing realizadas
+db.exec(`
+  CREATE TABLE IF NOT EXISTS entregas_marketing (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    solicitacao_id INTEGER,
+    phone_number TEXT NOT NULL,
+    nome_solicitante TEXT,
+    municipio_solicitante TEXT,
+    servico_entregue TEXT NOT NULL,
+    arquivos_entregues TEXT,
+    valor_final REAL,
+    data_entrega DATE,
+    responsavel_entrega TEXT,
+    observacoes_entrega TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (solicitacao_id) REFERENCES solicitacoes_marketing(id)
+  )
+`);
+
 // Função para executar queries (similar ao pg)
 const query = (sql, params = []) => {
   try {

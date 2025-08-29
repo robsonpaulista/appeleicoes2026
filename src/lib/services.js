@@ -546,3 +546,259 @@ export const entregasService = {
     return result.rows;
   }
 };
+
+// Serviços para Marketing
+export const marketingService = {
+  async getAll() {
+    const result = await pool.query('SELECT * FROM servicos_marketing ORDER BY categoria, nome');
+    return result.rows;
+  },
+
+  async getById(id) {
+    const result = await pool.query('SELECT * FROM servicos_marketing WHERE id = ?', [id]);
+    return result.rows[0];
+  },
+
+  async add(servicoData) {
+    const { nome, categoria, descricao, tempo_estimado, custo_estimado, fornecedor, observacoes } = servicoData;
+    const result = await pool.query(
+      'INSERT INTO servicos_marketing (nome, categoria, descricao, tempo_estimado, custo_estimado, fornecedor, observacoes) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING *',
+      [nome, categoria, descricao, tempo_estimado, custo_estimado || 0.00, fornecedor, observacoes]
+    );
+    return result.rows[0];
+  },
+
+  async update(id, servicoData) {
+    const { nome, categoria, descricao, tempo_estimado, custo_estimado, fornecedor, observacoes } = servicoData;
+    const result = await pool.query(
+      'UPDATE servicos_marketing SET nome = ?, categoria = ?, descricao = ?, tempo_estimado = ?, custo_estimado = ?, fornecedor = ?, observacoes = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? RETURNING *',
+      [nome, categoria, descricao, tempo_estimado, custo_estimado, fornecedor, observacoes, id]
+    );
+    return result.rows[0];
+  },
+
+  async delete(id) {
+    await pool.query('DELETE FROM servicos_marketing WHERE id = ?', [id]);
+  },
+
+  async getByCategoria(categoria) {
+    const result = await pool.query(
+      'SELECT * FROM servicos_marketing WHERE categoria = ? ORDER BY nome',
+      [categoria]
+    );
+    return result.rows;
+  },
+
+  async getStats() {
+    const result = await pool.query(`
+      SELECT 
+        COUNT(*) as total_servicos,
+        COUNT(DISTINCT categoria) as total_categorias,
+        AVG(custo_estimado) as custo_medio_estimado,
+        SUM(custo_estimado) as custo_total_estimado
+      FROM servicos_marketing
+    `);
+    return result.rows[0];
+  }
+};
+
+// Serviços para Solicitações de Marketing
+export const solicitacoesMarketingService = {
+  async getAll() {
+    const result = await pool.query('SELECT * FROM solicitacoes_marketing ORDER BY created_at DESC');
+    return result.rows;
+  },
+
+  async getById(id) {
+    const result = await pool.query('SELECT * FROM solicitacoes_marketing WHERE id = ?', [id]);
+    return result.rows[0];
+  },
+
+  async add(solicitacaoData) {
+    const { phone_number, nome_solicitante, municipio_solicitante, servico_solicitado, descricao_projeto, prazo_desejado, valor_estimado, observacoes } = solicitacaoData;
+    const result = await pool.query(
+      'INSERT INTO solicitacoes_marketing (phone_number, nome_solicitante, municipio_solicitante, servico_solicitado, descricao_projeto, prazo_desejado, valor_estimado, observacoes) VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING *',
+      [phone_number, nome_solicitante, municipio_solicitante, servico_solicitado, descricao_projeto, prazo_desejado, valor_estimado || 0.00, observacoes]
+    );
+    return result.rows[0];
+  },
+
+  async updateStatus(id, status, resposta_administrativo, valor_final, data_entrega) {
+    const result = await pool.query(
+      `UPDATE solicitacoes_marketing SET
+         status = ?, resposta_administrativo = ?, valor_final = ?, data_entrega = ?, updated_at = CURRENT_TIMESTAMP
+       WHERE id = ? RETURNING *`,
+      [status, resposta_administrativo, valor_final, data_entrega, id]
+    );
+    return result.rows[0];
+  },
+
+  async getByStatus(status) {
+    const result = await pool.query(
+      'SELECT * FROM solicitacoes_marketing WHERE status = ? ORDER BY created_at DESC',
+      [status]
+    );
+    return result.rows;
+  },
+
+  async getByLider(nome_solicitante) {
+    const result = await pool.query(
+      'SELECT * FROM solicitacoes_marketing WHERE nome_solicitante = ? ORDER BY created_at DESC',
+      [nome_solicitante]
+    );
+    return result.rows;
+  },
+
+  async getByMunicipio(municipio) {
+    const result = await pool.query(
+      'SELECT * FROM solicitacoes_marketing WHERE municipio_solicitante = ? ORDER BY created_at DESC',
+      [municipio]
+    );
+    return result.rows;
+  },
+
+  async getStats() {
+    const result = await pool.query(`
+      SELECT 
+        COUNT(*) as total_solicitacoes,
+        COUNT(CASE WHEN status = 'pendente' THEN 1 END) as solicitacoes_pendentes,
+        COUNT(CASE WHEN status = 'aprovada' THEN 1 END) as solicitacoes_aprovadas,
+        COUNT(CASE WHEN status = 'rejeitada' THEN 1 END) as solicitacoes_rejeitadas,
+        SUM(valor_estimado) as valor_total_estimado,
+        SUM(CASE WHEN status = 'aprovada' THEN valor_estimado ELSE 0 END) as valor_total_aprovado,
+        AVG(valor_estimado) as valor_medio_estimado
+      FROM solicitacoes_marketing
+    `);
+    return result.rows[0];
+  },
+
+  async getStatsPorLider() {
+    const result = await pool.query(`
+      SELECT 
+        nome_solicitante,
+        municipio_solicitante,
+        COUNT(*) as total_solicitacoes,
+        COUNT(CASE WHEN status = 'aprovada' THEN 1 END) as solicitacoes_aprovadas,
+        COUNT(CASE WHEN status = 'rejeitada' THEN 1 END) as solicitacoes_rejeitadas,
+        SUM(valor_estimado) as valor_total_estimado,
+        SUM(CASE WHEN status = 'aprovada' THEN valor_estimado ELSE 0 END) as valor_total_aprovado,
+        AVG(valor_estimado) as valor_medio_estimado
+      FROM solicitacoes_marketing
+      GROUP BY nome_solicitante, municipio_solicitante
+      ORDER BY total_solicitacoes DESC
+    `);
+    return result.rows;
+  },
+
+  async getStatsPorMunicipio() {
+    const result = await pool.query(`
+      SELECT 
+        municipio_solicitante,
+        COUNT(*) as total_solicitacoes,
+        COUNT(DISTINCT nome_solicitante) as total_lideres,
+        COUNT(CASE WHEN status = 'aprovada' THEN 1 END) as solicitacoes_aprovadas,
+        COUNT(CASE WHEN status = 'rejeitada' THEN 1 END) as solicitacoes_rejeitadas,
+        SUM(valor_estimado) as valor_total_estimado,
+        SUM(CASE WHEN status = 'aprovada' THEN valor_estimado ELSE 0 END) as valor_total_aprovado,
+        AVG(valor_estimado) as valor_medio_estimado
+      FROM solicitacoes_marketing
+      GROUP BY municipio_solicitante
+      ORDER BY total_solicitacoes DESC
+    `);
+    return result.rows;
+  },
+
+  async getStatsPorServico() {
+    const result = await pool.query(`
+      SELECT 
+        servico_solicitado,
+        COUNT(*) as total_solicitacoes,
+        COUNT(CASE WHEN status = 'aprovada' THEN 1 END) as solicitacoes_aprovadas,
+        COUNT(CASE WHEN status = 'rejeitada' THEN 1 END) as solicitacoes_rejeitadas,
+        SUM(valor_estimado) as valor_total_estimado,
+        SUM(CASE WHEN status = 'aprovada' THEN valor_estimado ELSE 0 END) as valor_total_aprovado,
+        AVG(valor_estimado) as valor_medio_estimado
+      FROM solicitacoes_marketing
+      GROUP BY servico_solicitado
+      ORDER BY total_solicitacoes DESC
+    `);
+    return result.rows;
+  }
+};
+
+// Serviços para Entregas de Marketing
+export const entregasMarketingService = {
+  async add(entregaData) {
+    const { solicitacao_id, phone_number, nome_solicitante, municipio_solicitante, servico_entregue, arquivos_entregues, valor_final, data_entrega, responsavel_entrega, observacoes_entrega } = entregaData;
+    const result = await pool.query(
+      'INSERT INTO entregas_marketing (solicitacao_id, phone_number, nome_solicitante, municipio_solicitante, servico_entregue, arquivos_entregues, valor_final, data_entrega, responsavel_entrega, observacoes_entrega) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *',
+      [solicitacao_id, phone_number, nome_solicitante, municipio_solicitante, servico_entregue, arquivos_entregues, valor_final, data_entrega, responsavel_entrega, observacoes_entrega]
+    );
+    return result.rows[0];
+  },
+
+  async getAll() {
+    const result = await pool.query('SELECT * FROM entregas_marketing ORDER BY data_entrega DESC');
+    return result.rows;
+  },
+
+  async getByLider(nome_solicitante) {
+    const result = await pool.query(
+      'SELECT * FROM entregas_marketing WHERE nome_solicitante = ? ORDER BY data_entrega DESC',
+      [nome_solicitante]
+    );
+    return result.rows;
+  },
+
+  async getByMunicipio(municipio) {
+    const result = await pool.query(
+      'SELECT * FROM entregas_marketing WHERE municipio_solicitante = ? ORDER BY data_entrega DESC',
+      [municipio]
+    );
+    return result.rows;
+  },
+
+  async getStats() {
+    const result = await pool.query(`
+      SELECT 
+        COUNT(*) as total_entregas,
+        SUM(valor_final) as valor_total_entregue,
+        COUNT(DISTINCT nome_solicitante) as total_lideres_atendidos,
+        COUNT(DISTINCT municipio_solicitante) as total_municipios_atendidos,
+        AVG(valor_final) as valor_medio_por_entrega
+      FROM entregas_marketing
+    `);
+    return result.rows[0];
+  },
+
+  async getStatsPorLider() {
+    const result = await pool.query(`
+      SELECT 
+        nome_solicitante,
+        municipio_solicitante,
+        COUNT(*) as total_entregas,
+        SUM(valor_final) as valor_total_entregue,
+        AVG(valor_final) as valor_medio_por_entrega,
+        MAX(data_entrega) as ultima_entrega
+      FROM entregas_marketing
+      GROUP BY nome_solicitante, municipio_solicitante
+      ORDER BY valor_total_entregue DESC
+    `);
+    return result.rows;
+  },
+
+  async getStatsPorMunicipio() {
+    const result = await pool.query(`
+      SELECT 
+        municipio_solicitante,
+        COUNT(*) as total_entregas,
+        COUNT(DISTINCT nome_solicitante) as total_lideres_atendidos,
+        SUM(valor_final) as valor_total_entregue,
+        AVG(valor_final) as valor_medio_por_entrega
+      FROM entregas_marketing
+      GROUP BY municipio_solicitante
+      ORDER BY valor_total_entregue DESC
+    `);
+    return result.rows;
+  }
+};
