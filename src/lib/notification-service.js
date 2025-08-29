@@ -1,6 +1,6 @@
 // Serviço de notificação para enviar respostas automáticas aos líderes
 
-import { solicitacoesService, solicitacoesMarketingService, solicitacoesAgendaService } from './services.js';
+import { solicitacoesService, solicitacoesMarketingService, solicitacoesAgendaService, registrosEventosService } from './services.js';
 
 class NotificationService {
   constructor() {
@@ -51,11 +51,12 @@ class NotificationService {
       const updatedSolicitacoes = await this.getUpdatedSolicitacoes();
       const updatedSolicitacoesMarketing = await this.getUpdatedSolicitacoesMarketing();
       const updatedSolicitacoesAgenda = await this.getUpdatedSolicitacoesAgenda();
+      const updatedEventos = await this.getUpdatedEventos();
       
-      const totalUpdates = updatedSolicitacoes.length + updatedSolicitacoesMarketing.length + updatedSolicitacoesAgenda.length;
+      const totalUpdates = updatedSolicitacoes.length + updatedSolicitacoesMarketing.length + updatedSolicitacoesAgenda.length + updatedEventos.length;
       
       if (totalUpdates > 0) {
-        console.log(`🔔 Encontradas ${totalUpdates} solicitações atualizadas (${updatedSolicitacoes.length} materiais + ${updatedSolicitacoesMarketing.length} marketing + ${updatedSolicitacoesAgenda.length} agenda)`);
+        console.log(`🔔 Encontradas ${totalUpdates} solicitações atualizadas (${updatedSolicitacoes.length} materiais + ${updatedSolicitacoesMarketing.length} marketing + ${updatedSolicitacoesAgenda.length} agenda + ${updatedEventos.length} eventos)`);
         
         for (const solicitacao of updatedSolicitacoes) {
           await this.sendNotification(solicitacao, 'material');
@@ -67,6 +68,10 @@ class NotificationService {
         
         for (const solicitacao of updatedSolicitacoesAgenda) {
           await this.sendNotification(solicitacao, 'agenda');
+        }
+        
+        for (const evento of updatedEventos) {
+          await this.sendNotification(evento, 'evento');
         }
       }
       this.lastCheck = new Date();
@@ -124,6 +129,20 @@ class NotificationService {
     }
   }
 
+  async getUpdatedEventos() {
+    try {
+      const eventos = await registrosEventosService.getAll();
+      return eventos.filter(evento => {
+        // Verificar se o evento foi atualizado desde a última verificação
+        const eventoDate = new Date(evento.updated_at || evento.created_at);
+        return eventoDate > this.lastCheck && evento.status !== 'pendente';
+      });
+    } catch (error) {
+      console.error('❌ Erro ao buscar eventos atualizados:', error);
+      return [];
+    }
+  }
+
   // Enviar notificação para o líder
   async sendNotification(solicitacao, tipo = 'material') {
     try {
@@ -153,6 +172,8 @@ class NotificationService {
       return this.formatMarketingNotificationMessage(solicitacao);
     } else if (tipo === 'agenda') {
       return this.formatAgendaNotificationMessage(solicitacao);
+    } else if (tipo === 'evento') {
+      return this.formatEventoNotificationMessage(solicitacao);
     } else {
       return this.formatMaterialNotificationMessage(solicitacao);
     }
@@ -231,6 +252,43 @@ class NotificationService {
     message += `Agradecemos seu interesse e esperamos poder atendê-lo em uma próxima oportunidade.`;
     
     return message;
+  }
+
+  formatEventoNotificationMessage(evento) {
+    if (evento.status === 'aprovado') {
+      return this.formatEventoApprovalMessage(evento);
+    } else if (evento.status === 'rejeitado') {
+      return this.formatEventoRejectionMessage(evento);
+    }
+    return null;
+  }
+
+  formatEventoApprovalMessage(evento) {
+    const dataFormatada = new Date(evento.data_evento).toLocaleDateString('pt-BR');
+    
+    return `🎉 *Evento Aprovado!*\n\n` +
+           `Olá ${evento.nome_organizador}! Seu registro de evento foi *aprovado* pelo administrativo.\n\n` +
+           `📅 *Detalhes do Evento:*\n` +
+           `• Título: ${evento.titulo_evento}\n` +
+           `• Data: ${dataFormatada}\n` +
+           `• Local: ${evento.local_evento}\n` +
+           `• Participantes: ${evento.quantidade_participantes}\n\n` +
+           `✅ O evento foi registrado com sucesso e será divulgado pelo gabinete do deputado.\n\n` +
+           `Obrigado por compartilhar essa importante atividade com nossa equipe!`;
+  }
+
+  formatEventoRejectionMessage(evento) {
+    const dataFormatada = new Date(evento.data_evento).toLocaleDateString('pt-BR');
+    
+    return `❌ *Evento Não Aprovado*\n\n` +
+           `Olá ${evento.nome_organizador}! Infelizmente seu registro de evento não foi aprovado.\n\n` +
+           `📅 *Detalhes do Evento:*\n` +
+           `• Título: ${evento.titulo_evento}\n` +
+           `• Data: ${dataFormatada}\n` +
+           `• Local: ${evento.local_evento}\n\n` +
+           `📝 *Observação do Administrativo:*\n` +
+           `${evento.resposta_administrativo || 'Não foi possível aprovar o registro deste evento.'}\n\n` +
+           `Para mais informações, entre em contato com nossa equipe administrativa.`;
   }
 
   // Formatar mensagem de aprovação

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { whitelistService, knowledgeBaseService, conversationLogService, materiaisService, solicitacoesService, solicitacoesMarketingService, solicitacoesAgendaService } from '@/lib/services';
+import { whitelistService, knowledgeBaseService, conversationLogService, materiaisService, solicitacoesService, solicitacoesMarketingService, solicitacoesAgendaService, registrosEventosService } from '@/lib/services';
 
 export async function POST(request: NextRequest) {
   try {
@@ -146,6 +146,37 @@ async function processMessage(phoneNumber: string, message: string) {
             });
             
             response = `Solicitação de agenda registrada com sucesso! Sua solicitação de reunião com o deputado foi enviada para o administrativo. Em breve entraremos em contato para confirmar a data e horário.`;
+            confidenceScore = 0.9;
+        } else if (normalizedMessage.includes('evento') || normalizedMessage.includes('reunião') || 
+            normalizedMessage.includes('reuniao') || normalizedMessage.includes('encontro') ||
+            normalizedMessage.includes('registro') || normalizedMessage.includes('registrar') ||
+            normalizedMessage.includes('foto') || normalizedMessage.includes('fotos') ||
+            normalizedMessage.includes('participantes') || normalizedMessage.includes('realizado') ||
+            normalizedMessage.includes('aconteceu') || normalizedMessage.includes('aconteceu')) {
+            
+            // Registrar evento/reunião
+            const vipInfo = await whitelistService.getVipInfo(phoneNumber);
+            const nome_organizador = vipInfo?.name || 'Líder';
+            const municipio = vipInfo?.municipio || 'Não informado';
+            
+            const evento = await registrosEventosService.add({
+                phone_number: phoneNumber,
+                nome_organizador: nome_organizador,
+                municipio: municipio,
+                data_evento: new Date().toISOString().split('T')[0], // Data atual como padrão
+                horario_evento: null,
+                local_evento: 'A ser informado',
+                tipo_evento: 'reuniao',
+                titulo_evento: 'Evento/Reunião',
+                descricao_evento: message,
+                quantidade_participantes: 0,
+                foto1_base64: null,
+                foto2_base64: null,
+                foto3_base64: null,
+                observacoes: `Registro via bot: ${message}`
+            });
+            
+            response = `Registro de evento/reunião iniciado! Por favor, me informe:\n\n1️⃣ Data do evento\n2️⃣ Horário\n3️⃣ Local\n4️⃣ Quantidade de participantes\n5️⃣ Envie até 3 fotos do evento\n\nVou te ajudar a registrar todas as informações!`;
             confidenceScore = 0.9;
         } else if (normalizedMessage.includes('PL-2628') || normalizedMessage.includes('2628/2022')) {
         // Busca específica para o PL-2628/2022

@@ -1007,23 +1007,14 @@ export const solicitacoesAgendaService = {
 // Serviços para Confirmações de Agenda
 export const confirmacoesAgendaService = {
   async add(confirmacaoData) {
-    const {
-      solicitacao_id, phone_number, nome_solicitante, municipio_solicitante,
-      data_agendada, horario_agendado, local_agendado, tipo_agendamento,
-      assunto, duracao_agendada, responsavel_agendamento, observacoes_agendamento
-    } = confirmacaoData;
-
-    const result = await pool.query(
-      `INSERT INTO confirmacoes_agenda 
-       (solicitacao_id, phone_number, nome_solicitante, municipio_solicitante,
-        data_agendada, horario_agendado, local_agendado, tipo_agendamento,
-        assunto, duracao_agendada, responsavel_agendamento, observacoes_agendamento) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *`,
-      [solicitacao_id, phone_number, nome_solicitante, municipio_solicitante,
-       data_agendada, horario_agendado, local_agendado, tipo_agendamento,
-       assunto, duracao_agendada, responsavel_agendamento, observacoes_agendamento]
-    );
-    return result.rows[0];
+    const { solicitacao_id, phone_number, nome_solicitante, municipio_solicitante, data_agendada, horario_agendado, local_agendado, tipo_agendamento, assunto, duracao_agendada, responsavel_agendamento, observacoes_agendamento } = confirmacaoData;
+    
+    const result = await pool.query(`
+      INSERT INTO confirmacoes_agenda (solicitacao_id, phone_number, nome_solicitante, municipio_solicitante, data_agendada, horario_agendado, local_agendado, tipo_agendamento, assunto, duracao_agendada, responsavel_agendamento, observacoes_agendamento)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `, [solicitacao_id, phone_number, nome_solicitante, municipio_solicitante, data_agendada, horario_agendado, local_agendado, tipo_agendamento, assunto, duracao_agendada, responsavel_agendamento, observacoes_agendamento]);
+    
+    return { id: result.lastID, ...confirmacaoData };
   },
 
   async getAll() {
@@ -1032,42 +1023,35 @@ export const confirmacoesAgendaService = {
   },
 
   async getByLider(nome_solicitante) {
-    const result = await pool.query(
-      'SELECT * FROM confirmacoes_agenda WHERE nome_solicitante = ? ORDER BY created_at DESC',
-      [nome_solicitante]
-    );
+    const result = await pool.query('SELECT * FROM confirmacoes_agenda WHERE nome_solicitante = ? ORDER BY created_at DESC', [nome_solicitante]);
     return result.rows;
   },
 
   async getByMunicipio(municipio) {
-    const result = await pool.query(
-      'SELECT * FROM confirmacoes_agenda WHERE municipio_solicitante = ? ORDER BY created_at DESC',
-      [municipio]
-    );
+    const result = await pool.query('SELECT * FROM confirmacoes_agenda WHERE municipio_solicitante = ? ORDER BY created_at DESC', [municipio]);
     return result.rows;
   },
 
   async getStats() {
     const result = await pool.query(`
       SELECT 
-        COUNT(*) as total_agendamentos,
-        COUNT(DISTINCT nome_solicitante) as lideres_agendados,
-        COUNT(DISTINCT municipio_solicitante) as municipios_agendados,
-        COUNT(DISTINCT data_agendada) as dias_com_agendamentos
+        COUNT(*) as total,
+        COUNT(CASE WHEN data_agendada >= date('now', '-30 days') THEN 1 END) as ultimos_30_dias,
+        COUNT(CASE WHEN data_agendada >= date('now', '-7 days') THEN 1 END) as ultimos_7_dias
       FROM confirmacoes_agenda
     `);
-    return result.rows[0];
+    return result[0];
   },
 
   async getStatsPorLider() {
     const result = await pool.query(`
       SELECT 
         nome_solicitante,
-        COUNT(*) as total_agendamentos,
-        COUNT(DISTINCT data_agendada) as dias_agendados
-      FROM confirmacoes_agenda 
-      GROUP BY nome_solicitante 
-      ORDER BY total_agendamentos DESC
+        COUNT(*) as total_confirmacoes,
+        COUNT(CASE WHEN data_agendada >= date('now', '-30 days') THEN 1 END) as ultimos_30_dias
+      FROM confirmacoes_agenda
+      GROUP BY nome_solicitante
+      ORDER BY total_confirmacoes DESC
     `);
     return result.rows;
   },
@@ -1076,12 +1060,193 @@ export const confirmacoesAgendaService = {
     const result = await pool.query(`
       SELECT 
         municipio_solicitante,
-        COUNT(*) as total_agendamentos,
-        COUNT(DISTINCT data_agendada) as dias_agendados
-      FROM confirmacoes_agenda 
-      GROUP BY municipio_solicitante 
-      ORDER BY total_agendamentos DESC
+        COUNT(*) as total_confirmacoes,
+        COUNT(CASE WHEN data_agendada >= date('now', '-30 days') THEN 1 END) as ultimos_30_dias
+      FROM confirmacoes_agenda
+      GROUP BY municipio_solicitante
+      ORDER BY total_confirmacoes DESC
     `);
     return result.rows;
   }
 };
+
+// Serviços para Registros de Eventos/Reuniões
+export const registrosEventosService = {
+  async getAll() {
+    const result = await pool.query('SELECT * FROM registros_eventos ORDER BY created_at DESC');
+    return result.rows;
+  },
+
+  async getById(id) {
+    const result = await pool.query('SELECT * FROM registros_eventos WHERE id = ?', [id]);
+    return result[0];
+  },
+
+  async add(eventoData) {
+    const { phone_number, nome_organizador, municipio, data_evento, horario_evento, local_evento, tipo_evento, titulo_evento, descricao_evento, quantidade_participantes, foto1_base64, foto2_base64, foto3_base64, observacoes } = eventoData;
+    
+    const result = await pool.query(`
+      INSERT INTO registros_eventos (phone_number, nome_organizador, municipio, data_evento, horario_evento, local_evento, tipo_evento, titulo_evento, descricao_evento, quantidade_participantes, foto1_base64, foto2_base64, foto3_base64, observacoes)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `, [phone_number, nome_organizador, municipio, data_evento, horario_evento, local_evento, tipo_evento, titulo_evento, descricao_evento, quantidade_participantes, foto1_base64, foto2_base64, foto3_base64, observacoes]);
+    
+    return { id: result.lastID, ...eventoData };
+  },
+
+  async update(id, eventoData) {
+    const { nome_organizador, municipio, data_evento, horario_evento, local_evento, tipo_evento, titulo_evento, descricao_evento, quantidade_participantes, foto1_base64, foto2_base64, foto3_base64, observacoes } = eventoData;
+    
+    await pool.query(`
+      UPDATE registros_eventos 
+      SET nome_organizador = ?, municipio = ?, data_evento = ?, horario_evento = ?, local_evento = ?, tipo_evento = ?, titulo_evento = ?, descricao_evento = ?, quantidade_participantes = ?, foto1_base64 = ?, foto2_base64 = ?, foto3_base64 = ?, observacoes = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `, [nome_organizador, municipio, data_evento, horario_evento, local_evento, tipo_evento, titulo_evento, descricao_evento, quantidade_participantes, foto1_base64, foto2_base64, foto3_base64, observacoes, id]);
+    
+    return { id, ...eventoData };
+  },
+
+  async updateStatus(id, status, resposta_administrativo, aprovado) {
+    await pool.query(`
+      UPDATE registros_eventos 
+      SET status = ?, resposta_administrativo = ?, aprovado = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `, [status, resposta_administrativo, aprovado ? 1 : 0, id]);
+    
+    return { id, status, resposta_administrativo, aprovado };
+  },
+
+  async delete(id) {
+    await pool.query('DELETE FROM registros_eventos WHERE id = ?', [id]);
+    return { id };
+  },
+
+  async getByStatus(status) {
+    const result = await pool.query('SELECT * FROM registros_eventos WHERE status = ? ORDER BY created_at DESC', [status]);
+    return result.rows;
+  },
+
+  async getByOrganizador(nome_organizador) {
+    const result = await pool.query('SELECT * FROM registros_eventos WHERE nome_organizador = ? ORDER BY created_at DESC', [nome_organizador]);
+    return result.rows;
+  },
+
+  async getByMunicipio(municipio) {
+    const result = await pool.query('SELECT * FROM registros_eventos WHERE municipio = ? ORDER BY created_at DESC', [municipio]);
+    return result.rows;
+  },
+
+  async getByTipo(tipo_evento) {
+    const result = await pool.query('SELECT * FROM registros_eventos WHERE tipo_evento = ? ORDER BY created_at DESC', [tipo_evento]);
+    return result.rows;
+  },
+
+  async getStats() {
+    const result = await pool.query(`
+      SELECT 
+        COUNT(*) as total,
+        COUNT(CASE WHEN status = 'pendente' THEN 1 END) as pendentes,
+        COUNT(CASE WHEN status = 'aprovado' THEN 1 END) as aprovados,
+        COUNT(CASE WHEN status = 'rejeitado' THEN 1 END) as rejeitados,
+        SUM(quantidade_participantes) as total_participantes,
+        COUNT(CASE WHEN data_evento >= date('now', '-30 days') THEN 1 END) as ultimos_30_dias,
+        COUNT(CASE WHEN data_evento >= date('now', '-7 days') THEN 1 END) as ultimos_7_dias
+      FROM registros_eventos
+    `);
+    return result.rows[0];
+  },
+
+  async getStatsPorOrganizador() {
+    const result = await pool.query(`
+      SELECT 
+        nome_organizador,
+        COUNT(*) as total_eventos,
+        SUM(quantidade_participantes) as total_participantes,
+        COUNT(CASE WHEN status = 'aprovado' THEN 1 END) as eventos_aprovados,
+        COUNT(CASE WHEN data_evento >= date('now', '-30 days') THEN 1 END) as ultimos_30_dias
+      FROM registros_eventos
+      GROUP BY nome_organizador
+      ORDER BY total_eventos DESC
+    `);
+    return result.rows;
+  },
+
+  async getStatsPorMunicipio() {
+    const result = await pool.query(`
+      SELECT 
+        municipio,
+        COUNT(*) as total_eventos,
+        SUM(quantidade_participantes) as total_participantes,
+        COUNT(CASE WHEN status = 'aprovado' THEN 1 END) as eventos_aprovados,
+        COUNT(CASE WHEN data_evento >= date('now', '-30 days') THEN 1 END) as ultimos_30_dias
+      FROM registros_eventos
+      GROUP BY municipio
+      ORDER BY total_eventos DESC
+    `);
+    return result.rows;
+  },
+
+  async getStatsPorTipo() {
+    const result = await pool.query(`
+      SELECT 
+        tipo_evento,
+        COUNT(*) as total_eventos,
+        SUM(quantidade_participantes) as total_participantes,
+        COUNT(CASE WHEN status = 'aprovado' THEN 1 END) as eventos_aprovados,
+        COUNT(CASE WHEN data_evento >= date('now', '-30 days') THEN 1 END) as ultimos_30_dias
+      FROM registros_eventos
+      GROUP BY tipo_evento
+      ORDER BY total_eventos DESC
+    `);
+    return result.rows;
+  }
+};
+
+// Serviços para Estatísticas de Eventos
+export const estatisticasEventosService = {
+  async add(estatisticaData) {
+    const { registro_id, phone_number, nome_organizador, municipio, data_evento, tipo_evento, quantidade_participantes } = estatisticaData;
+    
+    // Calcular totais do município
+    const municipioStats = await pool.query(`
+      SELECT 
+        SUM(quantidade_participantes) as total_participantes,
+        COUNT(*) as total_eventos
+      FROM registros_eventos 
+      WHERE municipio = ? AND status = 'aprovado'
+    `, [municipio]);
+    
+    const total_participantes_municipio = municipioStats[0]?.total_participantes || 0;
+    const total_eventos_municipio = municipioStats[0]?.total_eventos || 0;
+    
+    const result = await pool.query(`
+      INSERT INTO estatisticas_eventos (registro_id, phone_number, nome_organizador, municipio, data_evento, tipo_evento, quantidade_participantes, total_participantes_municipio, total_eventos_municipio)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `, [registro_id, phone_number, nome_organizador, municipio, data_evento, tipo_evento, quantidade_participantes, total_participantes_municipio, total_eventos_municipio]);
+    
+    return { id: result.lastID, ...estatisticaData, total_participantes_municipio, total_eventos_municipio };
+  },
+
+  async getAll() {
+    const result = await pool.query('SELECT * FROM estatisticas_eventos ORDER BY created_at DESC');
+    return result.rows;
+  },
+
+  async getByMunicipio(municipio) {
+    const result = await pool.query('SELECT * FROM estatisticas_eventos WHERE municipio = ? ORDER BY created_at DESC', [municipio]);
+    return result.rows;
+  },
+
+  async getStats() {
+    const result = await pool.query(`
+      SELECT 
+        COUNT(*) as total_registros,
+        SUM(quantidade_participantes) as total_participantes,
+        COUNT(DISTINCT municipio) as total_municipios,
+        AVG(quantidade_participantes) as media_participantes
+      FROM estatisticas_eventos
+    `);
+    return result.rows[0];
+  }
+};
+
+

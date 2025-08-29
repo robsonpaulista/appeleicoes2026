@@ -196,6 +196,50 @@ db.exec(`
   )
 `);
 
+// Tabela de registros de eventos/reuniões
+db.exec(`
+  CREATE TABLE IF NOT EXISTS registros_eventos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    phone_number TEXT NOT NULL,
+    nome_organizador TEXT NOT NULL,
+    municipio TEXT NOT NULL,
+    data_evento DATE NOT NULL,
+    horario_evento TEXT NOT NULL,
+    local_evento TEXT NOT NULL,
+    tipo_evento TEXT DEFAULT 'reuniao',
+    titulo_evento TEXT NOT NULL,
+    descricao_evento TEXT,
+    quantidade_participantes INTEGER DEFAULT 0,
+    foto1_base64 TEXT,
+    foto2_base64 TEXT,
+    foto3_base64 TEXT,
+    observacoes TEXT,
+    status TEXT DEFAULT 'pendente',
+    resposta_administrativo TEXT,
+    aprovado BOOLEAN DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )
+`);
+
+// Tabela de estatísticas de eventos
+db.exec(`
+  CREATE TABLE IF NOT EXISTS estatisticas_eventos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    registro_id INTEGER,
+    phone_number TEXT NOT NULL,
+    nome_organizador TEXT,
+    municipio TEXT,
+    data_evento DATE,
+    tipo_evento TEXT,
+    quantidade_participantes INTEGER,
+    total_participantes_municipio INTEGER DEFAULT 0,
+    total_eventos_municipio INTEGER DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (registro_id) REFERENCES registros_eventos(id)
+  )
+`);
+
 // Função para executar queries (similar ao pg)
 const query = (sql, params = []) => {
   try {
