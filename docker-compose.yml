@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15
+    container_name: bot_whatsapp_db
+    environment:
+      POSTGRES_DB: bot_whatsapp
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  app:
+    build: .
+    container_name: bot_whatsapp_app
+    environment:
+      DATABASE_URL: postgresql://postgres:password@postgres:5432/bot_whatsapp
+      JWT_SECRET: ${JWT_SECRET:-sua_chave_secreta_aqui}
+      NEXTAUTH_URL: http://localhost:3000
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-sua_chave_secreta_aqui}
+    ports:
+      - "3000:3000"
+    depends_on:
+      - postgres
+    volumes:
+      - ./.wwebjs_auth:/app/.wwebjs_auth
+      - ./logs:/app/logs
+    restart: unless-stopped
+
+volumes:
+  postgres_data:

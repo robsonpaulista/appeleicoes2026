@@ -1,0 +1,12 @@
+{
+  "totalProjetos": 34,
+  "estatisticas": {
+    "PL": 19,
+    "PEC": 15
+  },
+  "ultimaAtualizacao": "2025-08-29T15:58:15.232Z",
+  "deputado": "Jadyel Silva Alencar",
+  "idDeputado": 220697,
+  "fonte": "API Oficial da Câmara dos Deputados",
+  "url": "https://dadosabertos.camara.leg.br/swagger/api.html"
+}

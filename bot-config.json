@@ -1,0 +1,33 @@
+{
+  "bot": {
+    "name": "Bot WhatsApp Deputado",
+    "description": "Assistente virtual para o Deputado",
+    "version": "1.0.0",
+    "phoneNumber": "5586998391000",
+    "sessionPath": "./.wwebjs_auth",
+    "clientId": "bot-deputado"
+  },
+  "puppeteer": {
+    "headless": true,
+    "args": [
+      "--no-sandbox",
+      "--disable-setuid-sandbox",
+      "--disable-dev-shm-usage",
+      "--disable-accelerated-2d-canvas",
+      "--no-first-run",
+      "--no-zygote",
+      "--disable-gpu"
+    ]
+  },
+  "features": {
+    "autoReply": true,
+    "vipSupport": true,
+    "knowledgeBase": true,
+    "conversationLog": true
+  },
+  "web": {
+    "port": 3003,
+    "qrCodeRefresh": 5000,
+    "statusRefresh": 5000
+  }
+}

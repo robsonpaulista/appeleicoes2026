@@ -1,0 +1,12 @@
+{
+  "status": "error",
+  "message": "Erro não tratado: ProtocolError: Protocol error (Runtime.callFunctionOn): Target closed.",
+  "qrCode": null,
+  "qrData": null,
+  "lastUpdate": "2025-08-29T16:18:36.752Z",
+  "botInfo": {
+    "phoneNumber": null,
+    "isReady": false,
+    "sessionPath": null
+  }
+}
